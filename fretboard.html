@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ベース指板表 4弦</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: chips on top, a scrollable 4-string fretboard (frets 0-12), then a one-octave keyboard. */
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --fg: #22221f;
+  --muted: #77756d;
+  --line: #d9d7cf;
+  --board: #f3eef7;
+  --accent: #2f6b57;
+  --open: #3f7bd1;
+  --root: #f2c230;
+  --key-w: #ffffff;
+  --key-b: #22221f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1c1a;
+    --surface: #242623;
+    --fg: #ecebe6;
+    --muted: #9b998f;
+    --line: #444741;
+    --board: #2c2a31;
+    --accent: #8fcab2;
+    --open: #6fa6ea;
+    --root: #f2c230;
+    --key-w: #e9e8e3;
+    --key-b: #111211;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1c1a;
+  --surface: #242623;
+  --fg: #ecebe6;
+  --muted: #9b998f;
+  --line: #444741;
+  --board: #2c2a31;
+  --accent: #8fcab2;
+  --open: #6fa6ea;
+  --root: #f2c230;
+  --key-w: #e9e8e3;
+  --key-b: #111211;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 13px; margin: 20px 0 8px; color: var(--muted); letter-spacing: 0.04em; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 12px; }
+
+/* Note chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 12px; font-weight: 600; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: transparent; }
+.chip.root-chip { border-color: var(--root); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Fretboard */
+.board-wrap { overflow-x: auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--board); }
+.board { display: flex; min-width: max-content; padding: 6px 0 10px; }
+.labels { width: 66px; flex: 0 0 auto; }
+.labels .num { height: 22px; }
+.labels .str-name { height: 48px; display: flex; align-items: center; padding-left: 10px; font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.fret { width: 54px; flex: 0 0 auto; border-right: 1.5px solid var(--muted); }
+.fret.nut { border-right: 5px solid var(--fg); }
+.num { height: 22px; font-size: 12px; font-weight: 700; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.strings { position: relative; }
+.cell { position: relative; height: 48px; display: flex; align-items: center; justify-content: center; }
+.cell::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--muted); opacity: 0.6;
+}
+.note {
+  position: relative; z-index: 1;
+  min-width: 30px; height: 30px; box-sizing: border-box; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1.5px solid var(--fg); background: var(--surface);
+  font-size: 13px; font-weight: 700; white-space: nowrap;
+}
+.note.acc { border-radius: 999px; font-size: 10px; font-weight: 600; color: var(--muted); padding: 0 6px; }
+.note.root { background: var(--root); color: #22221f; border-color: #22221f; }
+.note.open { background: var(--open); color: #ffffff; border-color: transparent; }
+.note.sel { background: var(--accent); color: var(--surface); border-color: transparent; }
+.dot {
+  position: absolute; left: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%; background: var(--fg); opacity: 0.7;
+}
+
+/* Keyboard */
+.keys-wrap { overflow-x: auto; }
+.keys { position: relative; width: 308px; height: 150px; margin: 0 auto; }
+.wk {
+  position: absolute; top: 0; width: 44px; height: 150px; box-sizing: border-box;
+  background: var(--key-w); border: 1px solid #8a887f; border-radius: 0 0 6px 6px;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px;
+  font-size: 14px; font-weight: 700; color: #22221f;
+}
+.bk {
+  position: absolute; top: 0; width: 26px; height: 92px; box-sizing: border-box; z-index: 2;
+  background: var(--key-b); border-radius: 0 0 4px 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1.15; color: #ffffff; font-weight: 600;
+}
+.wk.root { background: var(--root); }
+.wk.sel, .bk.sel { background: var(--accent); color: var(--surface); }
+.wk.sel { color: var(--surface); }
+.wk.root.sel { background: var(--accent); }
+.key-note { margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ベース指板表(4弦)</h1>
+  <p class="muted">開放弦から12フレットまで。音名をタップすると、その音だけ強調します。黄色はCの音です。</p>
+</header>
+
+<div class="card">
+  <p class="muted" style="margin-bottom:8px">音名で絞り込む(もう一度タップで解除)</p>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+<p class="muted" style="margin-top:6px">青は開放弦です。ドットはポジションマークです。</p>
+
+<h2>鍵盤の音名</h2>
+<div class="keys-wrap">
+  <div class="keys" id="keys"></div>
+</div>
+<p class="muted key-note">白鍵と黒鍵の位置関係を、1オクターブ分で確認できます。</p>
+
+<script>
+(function () {
+  // 4-string bass, standard tuning: G (1弦), D (2弦), A (3弦), E (4弦).
+  // Pitch class: C=0 ... B=11.
+  var STRINGS = [
+    { n: "G", base: 7, l: "1弦" },
+    { n: "D", base: 2, l: "2弦" },
+    { n: "A", base: 9, l: "3弦" },
+    { n: "E", base: 4, l: "4弦" }
+  ];
+  var SHARP = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+  var FLAT = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
+  var WHITE = [0, 2, 4, 5, 7, 9, 11];
+  var BLACK = [
+    { pc: 1, x: 31 },
+    { pc: 3, x: 75 },
+    { pc: 6, x: 163 },
+    { pc: 8, x: 207 },
+    { pc: 10, x: 251 }
+  ];
+  var DOTS_SINGLE = [3, 5, 7, 9];
+  var FRETS = 12;
+  var selected = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    if (props) {
+      for (var k in props) {
+        if (k === "text") n.textContent = props[k];
+        else if (k === "cls") n.className = props[k];
+        else if (k === "on") { for (var ev in props.on) n.addEventListener(ev, props.on[ev]); }
+        else if (k in n) n[k] = props[k];
+        else n.setAttribute(k, props[k]);
+      }
+    }
+    (kids || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+
+  function isNatural(pc) { return SHARP[pc] === FLAT[pc]; }
+
+  function noteEl(pc, open, cls) {
+    var text = isNatural(pc) ? SHARP[pc] : SHARP[pc] + "/" + FLAT[pc];
+    var c = "note" + (isNatural(pc) ? "" : " acc") + (pc === 0 ? " root" : "") + (open ? " open" : "");
+    var e = el("span", { cls: c, text: text });
+    e.setAttribute("data-pc", String(pc));
+    return e;
+  }
+
+  function buildChips() {
+    var box = $("chips");
+    for (var pc = 0; pc < 12; pc++) {
+      (function (p) {
+        var label = isNatural(p) ? SHARP[p] : SHARP[p] + "/" + FLAT[p];
+        var b = el("button", { cls: "chip" + (p === 0 ? " root-chip" : ""), type: "button", text: label });
+        b.setAttribute("aria-pressed", "false");
+        b.setAttribute("data-chip", String(p));
+        b.addEventListener("click", function () {
+          selected = selected === p ? null : p;
+          applySelection();
+        });
+        box.appendChild(b);
+      })(pc);
+    }
+  }
+
+  function buildBoard() {
+    var board = $("board");
+    board.appendChild(el("div", { cls: "labels" }, [
+      el("div", { cls: "num", text: "" })
+    ].concat(STRINGS.map(function (s) {
+      return el("div", { cls: "str-name", text: s.l + " " + s.n });
+    }))));
+
+    for (var f = 0; f <= FRETS; f++) {
+      (function (fret) {
+        var col = el("div", { cls: "fret" + (fret === 0 ? " nut" : "") });
+        col.appendChild(el("div", { cls: "num", text: String(fret) }));
+        var strings = el("div", { cls: "strings" });
+        STRINGS.forEach(function (s) {
+          var pc = (s.base + fret) % 12;
+          var cell = el("div", { cls: "cell" }, [noteEl(pc, fret === 0)]);
+          strings.appendChild(cell);
+        });
+        if (DOTS_SINGLE.indexOf(fret) >= 0) {
+          strings.appendChild(el("span", { cls: "dot", "aria-hidden": "true" }))
+            .style.top = "96px";
+        }
+        if (fret === 12) {
+          var d1 = el("span", { cls: "dot", "aria-hidden": "true" });
+          d1.style.top = "48px";
+          var d2 = el("span", { cls: "dot", "aria-hidden": "true" });
+          d2.style.top = "144px";
+          strings.appendChild(d1);
+          strings.appendChild(d2);
+        }
+        col.appendChild(strings);
+        board.appendChild(col);
+      })(f);
+    }
+  }
+
+  function buildKeys() {
+    var box = $("keys");
+    WHITE.forEach(function (pc, i) {
+      var k = el("div", { cls: "wk" + (pc === 0 ? " root" : ""), text: SHARP[pc] });
+      k.style.left = (i * 44) + "px";
+      k.setAttribute("data-pc", String(pc));
+      box.appendChild(k);
+    });
+    BLACK.forEach(function (b) {
+      var k = el("div", { cls: "bk" }, [
+        el("span", { text: SHARP[b.pc] }),
+        el("span", { text: FLAT[b.pc] })
+      ]);
+      k.style.left = b.x + "px";
+      k.setAttribute("data-pc", String(b.pc));
+      box.appendChild(k);
+    });
+  }
+
+  function applySelection() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-chip]"), function (c) {
+      c.setAttribute("aria-pressed", String(Number(c.getAttribute("data-chip")) === selected));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-pc]"), function (n) {
+      var pc = Number(n.getAttribute("data-pc"));
+      if (n.classList.contains("note")) {
+        n.classList.toggle("sel", selected === pc);
+      } else {
+        n.classList.toggle("sel", selected === pc);
+      }
+    });
+  }
+
+  buildChips();
+  buildBoard();
+  buildKeys();
+  applySelection();
+})();
+</script>
+</body>
+</html>
