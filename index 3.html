@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ベース練習トラッカー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: date and summary on top, then three panes (songs, weekly plan, weak points and logs). */
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --fg: #22221f;
+  --muted: #77756d;
+  --line: #e2e0d8;
+  --accent: #2f6b57;
+  --accent-soft: #dcebe5;
+  --warn: #a4572a;
+  --warn-soft: #f4e4da;
+  --mid: #8a6d1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1c1a;
+    --surface: #242623;
+    --fg: #ecebe6;
+    --muted: #9b998f;
+    --line: #3a3c37;
+    --accent: #8fcab2;
+    --accent-soft: #2c3f37;
+    --warn: #e0a07a;
+    --warn-soft: #3d2c23;
+    --mid: #d6bb6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1c1a;
+  --surface: #242623;
+  --fg: #ecebe6;
+  --muted: #9b998f;
+  --line: #3a3c37;
+  --accent: #8fcab2;
+  --accent-soft: #2c3f37;
+  --warn: #e0a07a;
+  --warn-soft: #3d2c23;
+  --mid: #d6bb6e;
+  color-scheme: dark;
+}
+
+body {
+  box-sizing: border-box;
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); letter-spacing: 0.04em; font-weight: 600; }
+p { margin: 0; }
+section + section, .stack > * + * { margin-top: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.muted { color: var(--muted); font-size: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--muted); min-width: 0; }
+input[type="text"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+  font: inherit; font-size: 14px; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  width: 100%; box-sizing: border-box; min-width: 0;
+}
+textarea { resize: vertical; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn {
+  font-size: 13px; font-weight: 600; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn.primary { background: var(--accent); color: var(--surface); border-color: transparent; }
+.del { font-size: 12px; background: none; border: 0; color: var(--muted); padding: 6px 4px; cursor: pointer; }
+.del[data-armed="true"] { color: var(--warn); font-weight: 600; }
+
+/* Summary */
+.summary-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.big small { font-size: 14px; font-weight: 500; color: var(--muted); }
+.bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 12px 0 8px; }
+.bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.3s ease; }
+.live-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.live-row input[type="date"] { width: auto; }
+#countdown { margin-top: 8px; font-size: 13px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 6px; margin-top: 16px; }
+.tabs button {
+  flex: 1; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; cursor: pointer;
+}
+.tabs button[aria-pressed="true"] { color: var(--surface); background: var(--accent); border-color: transparent; }
+
+/* Songs */
+.add-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.add-row select { width: auto; }
+.song { border-top: 1px solid var(--line); padding: 10px 0; min-width: 0; }
+.song:first-child { border-top: 0; padding-top: 0; }
+.song summary { cursor: pointer; display: flex; gap: 8px; align-items: center; list-style: none; }
+.song summary::-webkit-details-marker { display: none; }
+.song-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.diff-badge, .pct { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.song-body { margin-top: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; width: fit-content; }
+.seg-btn { font-size: 12px; border: 0; background: var(--bg); color: var(--muted); padding: 5px 10px; cursor: pointer; }
+.seg-btn[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.part { display: grid; grid-template-columns: 6.5em auto minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
+.part .lbl { font-size: 13px; }
+.lvl {
+  font-size: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+  border-radius: 999px; padding: 3px 9px; cursor: pointer; white-space: nowrap;
+}
+.lvl[data-level="1"] { color: var(--warn); }
+.lvl[data-level="2"] { color: var(--mid); }
+.lvl[data-level="3"] { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+.img-box img { display: block; max-width: 100%; height: auto; border-radius: 8px; margin-top: 6px; border: 1px solid var(--line); }
+.img-box .btn { margin-top: 6px; }
+
+/* Plan */
+.week { margin-top: 12px; }
+.week.current { border-color: var(--accent); }
+.wk-title { font-size: 14px; margin: 0 0 2px; font-weight: 700; }
+.prow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.prow:first-of-type { border-top: 0; }
+.pname { min-width: 0; overflow-wrap: anywhere; }
+.prow select { width: auto; font-size: 12px; padding: 4px 6px; }
+.tip { margin-top: 6px; font-size: 13px; }
+
+/* Log */
+.taglist { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin-top: 8px; }
+.taglist label { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; min-width: 0; }
+.taglist input { margin-top: 4px; flex: 0 0 auto; }
+.log-item { padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.log-item:first-child { border-top: 0; padding-top: 0; }
+#status { min-height: 1.4em; font-size: 12px; color: var(--accent); margin-top: 8px; }
+@media (max-width: 380px) { .taglist { grid-template-columns: 1fr; } }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: inherit; font-size: 12px; font-weight: 600; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: transparent; }
+.band-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.badge { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px; background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; }
+.badge.off { background: var(--bg); color: var(--muted); border-color: var(--line); font-weight: 500; }
+.card h2:first-child { margin-top: 0; }
+.live-list { margin: 8px 0 0; padding: 0; list-style: none; }
+.live-list li { padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.live-list li:first-child { border-top: 0; }
+.live-list span:first-child { overflow-wrap: anywhere; min-width: 0; }
+.bpm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>ベース練習トラッカー</h1>
+  <p class="muted">26曲 ・ 10/22〜11/23(本番日を入れると期間が変わります)</p>
+  <p style="margin-top:6px"><a href="fretboard.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">指板表(4弦)を開く</a></p>
+</header>
+
+<section>
+  <div class="card">
+    <div class="summary-top">
+      <div class="big"><span id="doneCount">0</span><small> / <span id="totalCount">0</span> 曲仕上がり</small></div>
+      <div class="muted">全体 <span id="avgPct">0%</span></div>
+    </div>
+    <div class="bar" role="progressbar" aria-label="全体の進捗"><span id="barFill"></span></div>
+    <div class="live-row">
+      <label class="muted" for="liveDate">本番日</label>
+      <input type="date" id="liveDate" aria-label="本番日">
+      <button type="button" class="btn" id="clearLive">クリア</button>
+    </div>
+    <p id="countdown" class="muted" hidden></p>
+  </div>
+</section>
+
+<section>
+  <div class="card" id="liveCard"></div>
+  <div class="card" id="badgeCard" style="margin-top:12px"></div>
+</section>
+
+<nav class="tabs" aria-label="表示切り替え">
+  <button type="button" data-tab="songs" aria-pressed="true">曲</button>
+  <button type="button" data-tab="plan" aria-pressed="false">週の計画</button>
+  <button type="button" data-tab="log" aria-pressed="false">苦手・記録</button>
+  <button type="button" data-tab="tools" aria-pressed="false">ツール</button>
+</nav>
+
+<section id="pane-songs" class="stack">
+  <div class="card">
+    <form class="add-row" id="addForm">
+      <input type="text" id="newName" placeholder="曲名を追加" maxlength="60" aria-label="新しい曲名">
+      <select id="newDiff" aria-label="難易度">
+        <option value="">未設定</option>
+        <option value="easy">易</option>
+        <option value="mid">中</option>
+        <option value="hard">難</option>
+      </select>
+      <button type="submit" class="btn primary" style="grid-column: 1 / -1;">追加</button>
+    </form>
+  </div>
+  <div class="card">
+    <div class="chips" id="bandFilter"></div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="newBandName" placeholder="バンド名を追加" maxlength="30" aria-label="新しいバンド名">
+      <button type="button" class="btn" id="addBandBtn">追加</button>
+    </div>
+    <div class="band-list" id="bandList"></div>
+    <p class="muted" style="margin-top:6px">バンド名の「削除」を押すと、そのバンドの曲は未分類に戻ります。</p>
+  </div>
+  <div class="card" id="songs"></div>
+  <p class="muted">曲をタップすると、パートごとの習熟度・メモ・TAB譜などを開けます。習熟度はタップで「未着手 → 練習中 → ほぼOK → 完璧」の順に切り替わります。</p>
+</section>
+
+<section id="pane-plan" class="stack" hidden>
+  <div id="plan"></div>
+</section>
+
+<section id="pane-log" class="stack" hidden>
+  <div id="log"></div>
+</section>
+
+<section id="pane-tools" class="stack" hidden>
+  <div class="card">
+    <h2>メトロノーム</h2>
+    <div class="row">
+      <button type="button" class="btn primary" id="metroBtn">開始</button>
+      <span id="bpmVal" style="font-size:24px;font-weight:700;font-variant-numeric:tabular-nums">100</span>
+      <span class="muted">BPM</span>
+    </div>
+    <input type="range" id="bpmRange" min="20" max="260" value="100" aria-label="テンポ" style="margin-top:12px">
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn" data-bpm="-5">-5</button>
+      <button type="button" class="btn" data-bpm="-1">-1</button>
+      <button type="button" class="btn" data-bpm="1">+1</button>
+      <button type="button" class="btn" data-bpm="5">+5</button>
+    </div>
+    <p class="muted" style="margin-top:8px">目標BPMは、曲のカードの中で入力できます。</p>
+  </div>
+  <div class="card">
+    <h2>データの書き出し・読み込み</h2>
+    <p class="muted">書き出したJSONを別の端末やブラウザで読み込めば、記録を引き継げます。</p>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn primary" id="exportBtn">書き出す</button>
+    </div>
+    <label class="field">
+      <span>読み込むファイル(現在のデータは置き換わります)</span>
+      <input type="file" id="importFile" accept="application/json,.json">
+    </label>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn" id="importGo" hidden>読み込んで置き換える</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="btn primary" id="copyBtn">コピー</button>
+    </div>
+    <label class="field">
+      <span>コピーした内容を貼り付けて読み込む</span>
+      <textarea id="pasteBox" rows="3" aria-label="貼り付けて読み込む欄"></textarea>
+    </label>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn" id="pasteGo">貼り付けた内容を確認</button>
+    </div>
+    <p id="ioMsg" class="muted" style="margin-top:8px"></p>
+  </div>
+</section>
+
+<p id="status" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  var KEY = "bass-tracker-v2";
+  var PARTS = ["イントロ", "Aメロ", "Bメロ", "サビ", "間奏", "ラスト", "通し演奏", "暗譜完了"];
+  var LEVELS = ["未着手", "練習中", "ほぼOK", "完璧"];
+  var DIFFS = [{ k: "easy", l: "易" }, { k: "mid", l: "中" }, { k: "hard", l: "難" }, { k: "", l: "未設定" }];
+  var ORDER = { easy: 0, mid: 1, hard: 2, "": 3 };
+  var DEFAULT_TAGS = [
+    "指板の音名がわからない",
+    "TAB譜を読むのが遅い",
+    "リズムが安定しない",
+    "右手のピッキングが不安定",
+    "左手の運指が難しい",
+    "ミュートが苦手",
+    "スライドやハンマリングが苦手",
+    "耳コピが苦手",
+    "暗譜が苦手",
+    "曲の途中でテンポがずれる"
+  ];
+  var TIPS = [
+    "指板表で音名を確認し、12フレットまでの基本の音を口に出しながら弾く。",
+    "TABを見る時間を減らし、フレット番号と指の位置で読む練習を短く繰り返す。",
+    "メトロノームを使い、遅めのテンポから毎回少しずつ上げる。",
+    "ピッキングの位置と角度を確認し、ゆっくりで音をそろえて弾く。",
+    "運指を書き出し、一番楽な指使いに統一する。",
+    "弾かない弦を軽く止めるミュートを意識し、その部分だけ繰り返す。",
+    "単音のスライドとハンマリングだけを先に、ゆっくり繰り返す。",
+    "短いフレーズに区切り、音を確かめてから弾く。",
+    "曲を区間ごとに区切って覚え、つながりは後から確認する。",
+    "テンポを決めて区間ごとに練習し、最後に通しで合わせる。"
+  ];
+  var FIELDS = [
+    { k: "tabUrl", l: "TAB譜のURL" },
+    { k: "videoUrl", l: "練習動画のURL" },
+    { k: "refUrl", l: "参考にしている演奏動画" },
+    { k: "chords", l: "コード進行", m: 1 },
+    { k: "hardNote", l: "難しい部分のメモ", m: 1 },
+    { k: "bandNote", l: "バンド練習で指摘されたこと", m: 1 }
+  ];
+  var START = "2026-10-22";
+  var DEFAULT_END = "2026-11-23";
+
+  var state = { songs: [], tags: DEFAULT_TAGS.slice(), logs: [], liveDate: "", bands: [], days: [] };
+  var logSel = {};
+  var logDraft = { date: "", memo: "" };
+
+  function $(id) { return document.getElementById(id); }
+
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    if (props) {
+      for (var k in props) {
+        if (k === "text") n.textContent = props[k];
+        else if (k === "cls") n.className = props[k];
+        else if (k === "on") { for (var ev in props.on) n.addEventListener(ev, props.on[ev]); }
+        else if (k in n) n[k] = props[k];
+        else n.setAttribute(k, props[k]);
+      }
+    }
+    (kids || []).forEach(function (c) {
+      if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  function flash(text) {
+    var s = $("status");
+    s.textContent = text;
+    setTimeout(function () { if (s.textContent === text) s.textContent = ""; }, 2500);
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+      return true;
+    } catch (e) {
+      flash("保存できませんでした。画像を小さくするか、容量を減らしてください。");
+      return false;
+    }
+  }
+
+  function newParts() {
+    return PARTS.map(function (l) { return { label: l, level: 0, memo: "" }; });
+  }
+
+  function normalize(s, i) {
+    s.id = s.id || ("s" + i + Date.now());
+    s.name = s.name || ("曲 " + (i + 1));
+    s.diff = ORDER.hasOwnProperty(s.diff) ? s.diff : "";
+    s.week = typeof s.week === "number" ? s.week : null;
+    if (!Array.isArray(s.parts) || !s.parts.length) s.parts = newParts();
+    FIELDS.forEach(function (f) { if (typeof s[f.k] !== "string") s[f.k] = ""; });
+    if (typeof s.tabImg !== "string") s.tabImg = "";
+    if (typeof s.band !== "string") s.band = "";
+    return s;
+  }
+
+  function load() {
+    var parsed = null;
+    try {
+      var raw = localStorage.getItem(KEY);
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch (e) { parsed = null; }
+    if (parsed && Array.isArray(parsed.songs)) {
+      state.songs = parsed.songs.map(normalize);
+      state.tags = Array.isArray(parsed.tags) ? parsed.tags : DEFAULT_TAGS.slice();
+      state.logs = Array.isArray(parsed.logs) ? parsed.logs : [];
+      state.liveDate = typeof parsed.liveDate === "string" ? parsed.liveDate : "";
+      state.bands = Array.isArray(parsed.bands) ? parsed.bands : [];
+      state.days = Array.isArray(parsed.days) ? parsed.days : [];
+    } else {
+      for (var i = 1; i <= 26; i++) {
+        state.songs.push(normalize({ id: "s" + i, name: "曲 " + (i < 10 ? "0" + i : i), diff: "", week: null, parts: newParts() }, i - 1));
+      }
+    }
+  }
+
+  // ---- dates ----
+  function ymd(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function parseYMD(s) {
+    var p = s.split("-");
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+  function today() {
+    var n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+  function fmtMD(d) { return (d.getMonth() + 1) + "/" + d.getDate(); }
+
+  // Plan period: from 10/22 (or today if later) to the live date (or 11/23), split into 7-day weeks.
+  function periodInfo() {
+    var t = today();
+    var start = t < parseYMD(START) ? parseYMD(START) : t;
+    var end = state.liveDate ? parseYMD(state.liveDate) : parseYMD(DEFAULT_END);
+    if (end < start) end = start;
+    var days = daysBetween(start, end) + 1;
+    var k = Math.max(1, Math.ceil(days / 7));
+    var weeks = [];
+    for (var i = 0; i < k; i++) {
+      var ws = addDays(start, i * 7);
+      var we = addDays(ws, 6);
+      if (we > end) we = end;
+      weeks.push({ start: ws, end: we });
+    }
+    return { start: start, end: end, weeks: weeks };
+  }
+
+  function curWeek(pi) {
+    var t = today();
+    for (var i = 0; i < pi.weeks.length; i++) {
+      if (t >= pi.weeks[i].start && t <= pi.weeks[i].end) return i;
+    }
+    return -1;
+  }
+
+  // ---- song helpers ----
+  function pct(s) {
+    var total = s.parts.reduce(function (a, p) { return a + p.level; }, 0);
+    return Math.round(total / (s.parts.length * 3) * 100);
+  }
+  function isDone(s) {
+    return s.parts.length > 0 && s.parts.every(function (p) { return p.level === 3; });
+  }
+  function diffLabel(k) {
+    for (var i = 0; i < DIFFS.length; i++) if (DIFFS[i].k === k) return DIFFS[i].l;
+    return "未設定";
+  }
+
+  // Distribute n songs over k weeks; the last week takes the remainder.
+  function capacities(k, n) {
+    var base = Math.floor(n / k);
+    var rem = n % k;
+    var arr = [];
+    for (var i = 0; i < k; i++) arr.push(base + (i >= k - rem ? 1 : 0));
+    return arr;
+  }
+
+  function autoPlan() {
+    var pi = periodInfo();
+    var k = pi.weeks.length;
+    var todo = state.songs.map(function (s, i) { return { s: s, i: i }; })
+      .filter(function (x) { return !isDone(x.s); });
+    // Easier songs first; within a difficulty, the least-practiced songs come first.
+    todo.sort(function (a, b) {
+      return (ORDER[a.s.diff] - ORDER[b.s.diff]) || (pct(a.s) - pct(b.s)) || (a.i - b.i);
+    });
+    state.songs.forEach(function (s) { s.week = null; });
+    var caps = capacities(k, todo.length);
+    var wi = 0, used = 0;
+    todo.forEach(function (x) {
+      while (wi < k - 1 && used >= caps[wi]) { wi++; used = 0; }
+      x.s.week = wi;
+      used++;
+    });
+    save();
+  }
+
+  // ---- weak points ----
+  function tipFor(tag) {
+    var idx = DEFAULT_TAGS.indexOf(tag);
+    return idx >= 0 ? TIPS[idx] : "このつまずきだけを区間で区切り、ゆっくり練習する。";
+  }
+  function topTags(days) {
+    var cut = ymd(addDays(today(), -(days - 1)));
+    var counts = {};
+    state.logs.forEach(function (l) {
+      if (l.date >= cut) (l.tags || []).forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
+    });
+    return Object.keys(counts)
+      .map(function (t) { return { tag: t, count: counts[t], tip: tipFor(t) }; })
+      .sort(function (a, b) { return b.count - a.count; })
+      .slice(0, 3);
+  }
+
+  // ---- renderers ----
+  function renderSummary() {
+    var total = state.songs.length;
+    var done = state.songs.filter(isDone).length;
+    var sum = state.songs.reduce(function (a, s) { return a + pct(s); }, 0);
+    var avg = total ? Math.round(sum / total) : 0;
+    $("doneCount").textContent = done;
+    $("totalCount").textContent = total;
+    $("avgPct").textContent = avg + "%";
+    $("barFill").style.width = avg + "%";
+
+    var c = $("countdown");
+    var live = state.liveDate;
+    if (!live) {
+      c.textContent = "本番日を入れると、残り日数から1日あたりの目安を出します。";
+    } else {
+      var diff = daysBetween(today(), parseYMD(live));
+      var undone = total - done;
+      if (diff < 0) c.textContent = "本番日を過ぎています。";
+      else if (diff === 0) c.textContent = "今日が本番です。";
+      else c.textContent = "本番まで あと " + diff + " 日。残り " + undone + " 曲で、1日あたり約 " + (Math.round(undone / diff * 10) / 10) + " 曲が目安です。";
+    }
+  }
+
+  function songNode(s) {
+    var nameEl = el("span", { cls: "song-name" });
+    var badge = el("span", { cls: "diff-badge" });
+    var pctEl = el("span", { cls: "pct" });
+    function head() {
+      nameEl.textContent = s.name;
+      badge.textContent = diffLabel(s.diff);
+      pctEl.textContent = pct(s) + "%" + (isDone(s) ? " ・仕上がり" : "");
+    }
+    head();
+
+    var det = el("details", { cls: "song" });
+    det.appendChild(el("summary", null, [nameEl, badge, pctEl]));
+    var body = el("div", { cls: "song-body" });
+
+    // Name editing
+    var nameInput = el("input", { type: "text", value: s.name, maxLength: 60, "aria-label": "曲名" });
+    nameInput.addEventListener("change", function () {
+      s.name = nameInput.value.trim() || s.name;
+      nameInput.value = s.name;
+      save(); head(); renderPlan();
+    });
+    body.appendChild(el("label", { cls: "field" }, [el("span", { text: "曲名" }), nameInput]));
+
+    // Difficulty buttons
+    var segBtns = [];
+    var seg = el("div", { cls: "seg" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { cls: "seg-btn", type: "button", text: d.l });
+      b.setAttribute("aria-pressed", String(s.diff === d.k));
+      b.addEventListener("click", function () {
+        s.diff = d.k;
+        segBtns.forEach(function (x, i) { x.setAttribute("aria-pressed", String(DIFFS[i].k === s.diff)); });
+        save(); head(); renderPlan();
+      });
+      segBtns.push(b);
+      seg.appendChild(b);
+    });
+    body.appendChild(el("div", { cls: "field" }, [el("span", { text: "難易度" }), seg]));
+
+    // Band
+    var bandSel = el("select", { "aria-label": "バンド" });
+    bandSel.appendChild(el("option", { value: "", text: "未分類" }));
+    state.bands.forEach(function (b) { bandSel.appendChild(el("option", { value: b, text: b })); });
+    bandSel.value = s.band || "";
+    bandSel.addEventListener("change", function () { s.band = bandSel.value; save(); renderPlan(); });
+    body.appendChild(el("label", { cls: "field" }, [el("span", { text: "バンド" }), bandSel]));
+
+    // Parts with 4-level proficiency and memo
+    body.appendChild(el("div", { cls: "field" }, [el("span", { text: "パートごとの習熟度(タップで切り替え)" })]));
+    s.parts.forEach(function (p) {
+      var lvl = el("button", { cls: "lvl", type: "button", text: LEVELS[p.level] });
+      lvl.setAttribute("data-level", String(p.level));
+      lvl.addEventListener("click", function () {
+        p.level = (p.level + 1) % 4;
+        lvl.textContent = LEVELS[p.level];
+        lvl.setAttribute("data-level", String(p.level));
+        markPractice(); save(); head(); renderSummary(); renderPlan(); renderLiveCard(); renderBadges();
+      });
+      var memo = el("input", { type: "text", value: p.memo || "", placeholder: "メモ", maxLength: 200, "aria-label": p.label + "のメモ" });
+      memo.addEventListener("change", function () { p.memo = memo.value; save(); });
+      body.appendChild(el("div", { cls: "part" }, [el("span", { cls: "lbl", text: p.label }), lvl, memo]));
+    });
+
+    // Song-level fields
+    FIELDS.forEach(function (f) {
+      var inp = f.m ? el("textarea", { rows: 2, value: s[f.k] || "" }) : el("input", { type: "text", value: s[f.k] || "" });
+      inp.addEventListener("change", function () { s[f.k] = inp.value; save(); });
+      body.appendChild(el("label", { cls: "field" }, [el("span", { text: f.l }), inp]));
+    });
+
+    // Target and reached BPM
+    var tgt = el("input", { type: "number", min: "20", max: "300", value: s.targetBpm || "", "aria-label": "目標BPM" });
+    var reached = el("input", { type: "number", min: "20", max: "300", value: s.reachedBpm || "", "aria-label": "到達BPM" });
+    tgt.addEventListener("change", function () { s.targetBpm = Number(tgt.value) || 0; save(); });
+    reached.addEventListener("change", function () { s.reachedBpm = Number(reached.value) || 0; save(); });
+    body.appendChild(el("div", { cls: "bpm-grid" }, [
+      el("label", { cls: "field" }, [el("span", { text: "目標BPM" }), tgt]),
+      el("label", { cls: "field" }, [el("span", { text: "到達BPM" }), reached])
+    ]));
+
+    // TAB image
+    var imgBox = el("div", { cls: "img-box" });
+    function drawImg() {
+      imgBox.textContent = "";
+      if (s.tabImg) {
+        imgBox.appendChild(el("img", { src: s.tabImg, alt: "TAB譜の画像" }));
+        imgBox.appendChild(el("button", { cls: "btn", type: "button", text: "画像を削除", on: { click: function () { s.tabImg = ""; save(); drawImg(); } } }));
+      }
+    }
+    drawImg();
+    var file = el("input", { type: "file", accept: "image/*", "aria-label": "TAB譜の画像を選ぶ" });
+    var msg = el("p", { cls: "muted" });
+    file.addEventListener("change", function () {
+      var f = file.files && file.files[0];
+      if (!f) return;
+      if (f.size > 1500000) { msg.textContent = "1.5MB以下の画像を選んでください。"; return; }
+      var r = new FileReader();
+      r.onload = function () {
+        s.tabImg = r.result;
+        if (!save()) { s.tabImg = ""; return; }
+        msg.textContent = "";
+        drawImg();
+      };
+      r.readAsDataURL(f);
+    });
+    body.appendChild(el("div", { cls: "field" }, [el("span", { text: "TAB譜の画像" }), file, msg, imgBox]));
+
+    // Delete (two taps)
+    var del = el("button", { cls: "del", type: "button", text: "この曲を削除" });
+    del.addEventListener("click", function () {
+      if (del.getAttribute("data-armed") !== "true") {
+        del.setAttribute("data-armed", "true");
+        del.textContent = "もう一度押すと削除";
+        setTimeout(function () { del.setAttribute("data-armed", "false"); del.textContent = "この曲を削除"; }, 3000);
+        return;
+      }
+      state.songs = state.songs.filter(function (x) { return x !== s; });
+      save(); renderAll();
+    });
+    body.appendChild(del);
+
+    det.appendChild(body);
+    return det;
+  }
+
+  var bandFilter = ""; // "" = all, "__none" = unassigned, otherwise a band name
+
+  function renderBandBar() {
+    var bar = $("bandFilter");
+    bar.textContent = "";
+    var items = [{ k: "", l: "すべて" }]
+      .concat(state.bands.map(function (b) { return { k: b, l: b }; }))
+      .concat([{ k: "__none", l: "未分類" }]);
+    items.forEach(function (it) {
+      var b = el("button", { cls: "chip", type: "button", text: it.l });
+      b.setAttribute("aria-pressed", String(bandFilter === it.k));
+      b.addEventListener("click", function () { bandFilter = it.k; renderSongs(); });
+      bar.appendChild(b);
+    });
+    var list = $("bandList");
+    list.textContent = "";
+    state.bands.forEach(function (name) {
+      var del = el("button", { cls: "del", type: "button", text: "「" + name + "」を削除" });
+      del.addEventListener("click", function () {
+        state.bands = state.bands.filter(function (x) { return x !== name; });
+        state.songs.forEach(function (s) { if (s.band === name) s.band = ""; });
+        if (bandFilter === name) bandFilter = "";
+        save(); renderAll();
+      });
+      list.appendChild(del);
+    });
+  }
+
+  function renderSongs() {
+    var box = $("songs");
+    box.textContent = "";
+    if (!state.songs.length) {
+      box.appendChild(el("p", { cls: "muted", text: "曲がありません。上のフォームから追加してください。" }));
+      return;
+    }
+    renderBandBar();
+    var shown = state.songs.filter(function (s) {
+      if (bandFilter === "") return true;
+      if (bandFilter === "__none") return !s.band;
+      return s.band === bandFilter;
+    });
+    if (!shown.length) {
+      box.appendChild(el("p", { cls: "muted", text: "この条件の曲はありません。" }));
+      return;
+    }
+    shown.forEach(function (s) { box.appendChild(songNode(s)); });
+  }
+
+  function renderPlan() {
+    var box = $("plan");
+    box.textContent = "";
+    var pi = periodInfo();
+    var k = pi.weeks.length;
+    var cw = curWeek(pi);
+
+    var btn = el("button", { cls: "btn primary", type: "button", text: "難易度順に週へ振り分け" });
+    btn.addEventListener("click", function () { autoPlan(); renderPlan(); flash("振り分けを更新しました。"); });
+    box.appendChild(el("div", { cls: "card" }, [
+      el("p", { text: "期間: " + fmtMD(pi.start) + "〜" + fmtMD(pi.end) + "(全" + k + "週)" }),
+      el("p", { cls: "muted", text: "易しい曲から順に、残りの曲を週へ均等に割り振ります。各曲の週は手動でも変えられます。" }),
+      el("div", { style: "margin-top:10px" }, [btn])
+    ]));
+
+    // Next-week focus
+    var tops = topTags(7);
+    var focus = el("div", { cls: "card", style: "margin-top:12px" });
+    focus.appendChild(el("h2", { text: "来週の重点(直近7日のつまずき)" }));
+    if (!tops.length) {
+      focus.appendChild(el("p", { cls: "muted", text: "練習後に「苦手・記録」でつまずきを残すと、ここに重点が出ます。" }));
+    } else {
+      tops.forEach(function (t) {
+        focus.appendChild(el("p", { text: t.tag + "(" + t.count + "回)" }));
+        focus.appendChild(el("p", { cls: "tip muted", text: t.tip }));
+      });
+    }
+    box.appendChild(focus);
+
+    var weekOpts = [{ v: "", l: "未割当" }].concat(pi.weeks.map(function (w, i) { return { v: String(i), l: "第" + (i + 1) + "週" }; }));
+
+    function songRow(s) {
+      var sel = el("select", { "aria-label": s.name + "の週" });
+      weekOpts.forEach(function (o) { sel.appendChild(el("option", { value: o.v, text: o.l })); });
+      sel.value = (s.week == null || s.week >= k || s.week < 0) ? "" : String(s.week);
+      sel.addEventListener("change", function () {
+        s.week = sel.value === "" ? null : Number(sel.value);
+        save(); renderPlan();
+      });
+      return el("div", { cls: "prow" }, [
+        el("span", { cls: "pname", text: (isDone(s) ? "✓ " : "") + s.name }),
+        el("span", { cls: "diff-badge", text: diffLabel(s.diff) }),
+        el("span", { cls: "pct", text: pct(s) + "%" }),
+        sel
+      ]);
+    }
+
+    pi.weeks.forEach(function (w, i) {
+      var list = state.songs.filter(function (s) { return s.week === i; });
+      var card = el("div", { cls: "card week" + (i === cw ? " current" : "") });
+      card.appendChild(el("p", { cls: "wk-title", text: "第" + (i + 1) + "週 " + fmtMD(w.start) + "〜" + fmtMD(w.end) + (i === cw ? "(今週)" : "") }));
+      card.appendChild(el("p", { cls: "muted", text: list.length + "曲" }));
+      if (tops.length) card.appendChild(el("p", { cls: "tip muted", text: "この週の重点: " + tops[0].tip }));
+      list.forEach(function (s) { card.appendChild(songRow(s)); });
+      box.appendChild(card);
+    });
+
+    var loose = state.songs.filter(function (s) { return s.week == null || s.week >= k || s.week < 0; });
+    if (loose.length) {
+      var lc = el("div", { cls: "card week" });
+      lc.appendChild(el("p", { cls: "wk-title", text: "未割当" }));
+      loose.forEach(function (s) { lc.appendChild(songRow(s)); });
+      box.appendChild(lc);
+    }
+  }
+
+  function renderLog() {
+    var box = $("log");
+    box.textContent = "";
+
+    var card = el("div", { cls: "card" });
+    card.appendChild(el("h2", { text: "練習後のつまずきを記録" }));
+
+    var dateInput = el("input", { type: "date", value: logDraft.date || ymd(today()), "aria-label": "記録する日" });
+    dateInput.addEventListener("change", function () { logDraft.date = dateInput.value; });
+    card.appendChild(el("label", { cls: "field" }, [el("span", { text: "日付" }), dateInput]));
+
+    var list = el("div", { cls: "taglist" });
+    state.tags.forEach(function (t) {
+      var cb = el("input", { type: "checkbox", checked: !!logSel[t] });
+      cb.addEventListener("change", function () { logSel[t] = cb.checked; });
+      list.appendChild(el("label", null, [cb, el("span", { text: t })]));
+    });
+    card.appendChild(el("div", { cls: "field" }, [el("span", { text: "今日つまずいたこと" }), list]));
+
+    var customInput = el("input", { type: "text", placeholder: "項目を追加", maxLength: 40, "aria-label": "つまずきの項目を追加" });
+    var customBtn = el("button", { cls: "btn", type: "button", text: "追加" });
+    customBtn.addEventListener("click", function () {
+      var v = customInput.value.trim();
+      if (!v || state.tags.indexOf(v) >= 0) return;
+      state.tags.push(v);
+      save(); renderLog();
+    });
+    card.appendChild(el("div", { cls: "row", style: "margin-top:8px" }, [customInput, customBtn]));
+
+    var memo = el("textarea", { rows: 2, placeholder: "メモ(任意)", maxLength: 300, value: logDraft.memo, "aria-label": "練習メモ" });
+    memo.addEventListener("change", function () { logDraft.memo = memo.value; });
+    card.appendChild(el("label", { cls: "field" }, [el("span", { text: "メモ" }), memo]));
+
+    var saveBtn = el("button", { cls: "btn primary", type: "button", text: "記録する" });
+    saveBtn.addEventListener("click", function () {
+      var tags = state.tags.filter(function (t) { return logSel[t]; });
+      var m = memo.value.trim();
+      if (!tags.length && !m) { flash("つまずきかメモを入れてください。"); return; }
+      state.logs.push({ date: dateInput.value || ymd(today()), tags: tags, memo: m });
+      markPractice();
+      logSel = {};
+      logDraft = { date: "", memo: "" };
+      if (save()) {
+        flash("記録しました。");
+        renderLog(); renderPlan();
+      }
+    });
+    card.appendChild(el("div", { style: "margin-top:10px" }, [saveBtn]));
+    box.appendChild(card);
+
+    // Recent logs
+    var recent = state.logs.slice(-10).reverse();
+    var rc = el("div", { cls: "card", style: "margin-top:12px" });
+    rc.appendChild(el("h2", { text: "最近の記録" }));
+    if (!recent.length) rc.appendChild(el("p", { cls: "muted", text: "まだ記録がありません。" }));
+    recent.forEach(function (l) {
+      rc.appendChild(el("div", { cls: "log-item" }, [
+        el("p", { cls: "muted", text: l.date }),
+        el("p", { text: (l.tags && l.tags.length) ? l.tags.join("、") : "(タグなし)" }),
+        l.memo ? el("p", { cls: "muted", text: l.memo }) : null
+      ]));
+    });
+    box.appendChild(rc);
+  }
+
+  // ---- streak, badges, live countdown ----
+  function markPractice() {
+    var k = ymd(today());
+    if (state.days.indexOf(k) < 0) state.days.push(k);
+  }
+
+  function streakInfo() {
+    var set = {};
+    state.days.forEach(function (d) { set[d] = true; });
+    // Today counts once practiced; until then the streak still holds from yesterday.
+    var d = today();
+    if (!set[ymd(d)]) d = addDays(d, -1);
+    var current = 0;
+    while (set[ymd(d)]) { current++; d = addDays(d, -1); }
+    var best = 0, run = 0, prev = null;
+    Object.keys(set).sort().forEach(function (k) {
+      var dt = parseYMD(k);
+      run = (prev && daysBetween(prev, dt) === 1) ? run + 1 : 1;
+      prev = dt;
+      if (run > best) best = run;
+    });
+    return { current: current, best: best };
+  }
+
+  function renderBadges() {
+    var box = $("badgeCard");
+    box.textContent = "";
+    var st = streakInfo();
+    var total = state.songs.length;
+    var done = state.songs.filter(isDone).length;
+    box.appendChild(el("h2", { text: "連続練習と達成" }));
+    box.appendChild(el("p", { text: "連続練習 " + st.current + " 日(最長 " + st.best + " 日)" }));
+    var list = el("div", { cls: "band-list" });
+    [
+      { l: "3日連続", ok: st.best >= 3 },
+      { l: "7日連続", ok: st.best >= 7 },
+      { l: "1曲仕上げ", ok: done >= 1 },
+      { l: "5曲仕上げ", ok: done >= 5 },
+      { l: "10曲仕上げ", ok: done >= 10 },
+      { l: "全曲仕上げ", ok: total > 0 && done >= total }
+    ].forEach(function (it) {
+      list.appendChild(el("span", { cls: "badge" + (it.ok ? "" : " off"), text: it.l }));
+    });
+    box.appendChild(list);
+  }
+
+  function renderLiveCard() {
+    var box = $("liveCard");
+    box.textContent = "";
+    box.appendChild(el("h2", { text: "ライブ前の残り日数" }));
+    if (!state.liveDate) {
+      box.appendChild(el("p", { cls: "muted", text: "上の「本番日」に日付を入れると、残り日数と、あと少しで仕上がる曲を表示します。" }));
+      return;
+    }
+    var diff = daysBetween(today(), parseYMD(state.liveDate));
+    var undone = state.songs.filter(function (s) { return !isDone(s); });
+    var numText = diff < 0 ? "終了" : (diff === 0 ? "今日" : String(diff));
+    box.appendChild(el("div", { cls: "big" }, [numText, diff > 0 ? el("small", { text: " 日" }) : null]));
+    box.appendChild(el("p", { cls: "muted", text: "本番日 " + fmtMD(parseYMD(state.liveDate)) }));
+
+    var msg;
+    if (diff < 0) msg = "本番日を過ぎています。";
+    else if (diff === 0) msg = "今日が本番です。";
+    else if (!undone.length) msg = "全曲仕上がりです。";
+    else msg = "残り " + undone.length + " 曲。1日あたり約 " + (Math.ceil(undone.length / diff * 10) / 10) + " 曲が目安です。";
+    box.appendChild(el("p", { text: msg, style: "margin-top:6px" }));
+    box.appendChild(el("p", { cls: "muted", text: "今日の練習: " + (state.days.indexOf(ymd(today())) >= 0 ? "記録済み" : "まだ") }));
+
+    if (undone.length) {
+      box.appendChild(el("h2", { text: "あと少しで仕上がる曲" }));
+      var cands = undone.slice().sort(function (a, b) {
+        return (pct(b) - pct(a)) || (ORDER[a.diff] - ORDER[b.diff]);
+      }).slice(0, 3);
+      var ul = el("ul", { cls: "live-list" });
+      cands.forEach(function (s) {
+        ul.appendChild(el("li", null, [el("span", { text: s.name }), el("span", { cls: "muted", text: pct(s) + "%" })]));
+      });
+      box.appendChild(ul);
+    }
+  }
+
+  function renderAll() {
+    renderSummary();
+    renderSongs();
+    renderPlan();
+    renderLog();
+    renderLiveCard();
+    renderBadges();
+  }
+
+  // ---- events ----
+  $("addBandBtn").addEventListener("click", function () {
+    var inp = $("newBandName");
+    var v = inp.value.trim();
+    if (!v || state.bands.indexOf(v) >= 0) { inp.focus(); return; }
+    state.bands.push(v);
+    inp.value = "";
+    save(); renderAll();
+  });
+  $("addForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = $("newName");
+    var v = input.value.trim();
+    if (!v) { input.focus(); return; }
+    var band = (bandFilter && bandFilter !== "__none") ? bandFilter : "";
+    state.songs.push(normalize({ id: "s" + Date.now(), name: v, diff: $("newDiff").value, band: band, week: null, parts: newParts() }, state.songs.length));
+    input.value = "";
+    save(); renderAll();
+    input.focus();
+  });
+
+  $("liveDate").addEventListener("change", function (e) {
+    state.liveDate = e.target.value;
+    save(); renderSummary(); renderPlan(); renderLiveCard();
+  });
+  $("clearLive").addEventListener("click", function () {
+    state.liveDate = "";
+    $("liveDate").value = "";
+    save(); renderSummary(); renderPlan(); renderLiveCard();
+  });
+
+  var tabs = document.querySelectorAll("[data-tab]");
+  Array.prototype.forEach.call(tabs, function (b) {
+    b.addEventListener("click", function () {
+      var name = b.getAttribute("data-tab");
+      Array.prototype.forEach.call(tabs, function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      $("pane-songs").hidden = name !== "songs";
+      $("pane-plan").hidden = name !== "plan";
+      $("pane-log").hidden = name !== "log";
+      $("pane-tools").hidden = name !== "tools";
+    });
+  });
+
+  // ---- metronome ----
+  var bpm = 100, timer = null, audioCtx = null;
+  // Softer, lower click: a sine wave with a short fade-in and fade-out.
+  var soundFreq = 660, soundVol = 0.05;
+  function click() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      var t = audioCtx.currentTime;
+      o.type = "sine";
+      o.frequency.value = soundFreq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(soundVol, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + 0.13);
+    } catch (e) { /* no audio available */ }
+  }
+  function setBpm(v) {
+    bpm = Math.max(20, Math.min(260, Math.round(v)));
+    $("bpmVal").textContent = bpm;
+    $("bpmRange").value = bpm;
+    if (timer) { clearInterval(timer); timer = setInterval(click, 60000 / bpm); }
+  }
+  $("metroBtn").addEventListener("click", function () {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+      $("metroBtn").textContent = "開始";
+    } else {
+      timer = setInterval(click, 60000 / bpm);
+      click();
+      $("metroBtn").textContent = "停止";
+    }
+  });
+  $("bpmRange").addEventListener("input", function (e) { setBpm(Number(e.target.value)); });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-bpm]"), function (b) {
+    b.addEventListener("click", function () { setBpm(bpm + Number(b.getAttribute("data-bpm"))); });
+  });
+
+  // ---- export / import ----
+  $("exportBtn").addEventListener("click", function () {
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "bass-tracker-" + ymd(today()) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    $("ioMsg").textContent = "書き出しました。ダウンロードされたファイルを保管してください。";
+  });
+
+  var pendingImport = null;
+  $("importFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    pendingImport = null;
+    $("importGo").hidden = true;
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var parsed = JSON.parse(r.result);
+        if (!parsed || !Array.isArray(parsed.songs)) throw new Error("bad");
+        pendingImport = parsed;
+        $("importGo").hidden = false;
+        $("ioMsg").textContent = "読み込める形式です。ボタンを押すと、現在のデータが置き換わります。";
+      } catch (err) {
+        $("ioMsg").textContent = "このファイルは読み込めませんでした。書き出したJSONを選んでください。";
+      }
+    };
+    r.readAsText(f);
+  });
+  // Copy works in the preview too, where file downloads are blocked.
+  $("copyBtn").addEventListener("click", function () {
+    var txt = JSON.stringify(state);
+    var fail = function () {
+      var ta = $("pasteBox");
+      ta.value = txt;
+      ta.select();
+      $("ioMsg").textContent = "コピーできませんでした。下の欄に内容を入れたので、長押しで選んでコピーしてください。";
+    };
+    try {
+      navigator.clipboard.writeText(txt).then(function () {
+        $("ioMsg").textContent = "コピーしました。メモ帳などに貼って保管してください。";
+      }, fail);
+    } catch (e) { fail(); }
+  });
+
+  $("pasteGo").addEventListener("click", function () {
+    var raw = $("pasteBox").value.trim();
+    try {
+      var parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.songs)) throw new Error("bad");
+      pendingImport = parsed;
+      $("importGo").hidden = false;
+      $("ioMsg").textContent = "読み込める形式です。「読み込んで置き換える」を押すと、現在のデータが置き換わります。";
+    } catch (e) {
+      pendingImport = null;
+      $("importGo").hidden = true;
+      $("ioMsg").textContent = "貼り付けた内容を読み込めませんでした。コピーした内容を全部貼ってください。";
+    }
+  });
+
+  $("importGo").addEventListener("click", function () {
+    if (!pendingImport) return;
+    state.songs = pendingImport.songs.map(normalize);
+    state.tags = Array.isArray(pendingImport.tags) ? pendingImport.tags : DEFAULT_TAGS.slice();
+    state.logs = Array.isArray(pendingImport.logs) ? pendingImport.logs : [];
+    state.liveDate = typeof pendingImport.liveDate === "string" ? pendingImport.liveDate : "";
+    state.bands = Array.isArray(pendingImport.bands) ? pendingImport.bands : [];
+    state.days = Array.isArray(pendingImport.days) ? pendingImport.days : [];
+    pendingImport = null;
+    $("importGo").hidden = true;
+    $("liveDate").value = state.liveDate;
+    save();
+    renderAll();
+    $("ioMsg").textContent = "読み込みました。";
+  });
+
+  load();
+  $("liveDate").value = state.liveDate || "";
+  renderAll();
+})();
+</script>
+</body>
+</html>
