@@ -3,12 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>ベース練習トラッカー</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="ベース練習">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f5f4f0">
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Layout: date and summary on top, then three panes (songs, weekly plan, weak points and logs). */
 :root {
@@ -118,8 +113,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; width: fit-content; }
 .seg-btn { font-size: 12px; border: 0; background: var(--bg); color: var(--muted); padding: 5px 10px; cursor: pointer; }
 .seg-btn[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
-.part { display: grid; grid-template-columns: 6.5em auto minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; }
-.part .lbl { font-size: 13px; }
+.part { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.part .lbl { font-size: 13px; font-weight: 600; }
+.lvl-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.lvl-btn { font: inherit; font-size: 12px; border: 0; background: var(--bg); color: var(--muted); padding: 8px 2px; cursor: pointer; white-space: nowrap; }
+.lvl-btn + .lvl-btn { border-left: 1px solid var(--line); }
+.lvl-btn[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
 .lvl {
   font-size: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--muted);
   border-radius: 999px; padding: 3px 9px; cursor: pointer; white-space: nowrap;
@@ -171,14 +170,13 @@ input[type="number"] { font: inherit; font-size: 16px; color: var(--fg); backgro
 input[type="date"] { min-width: 0; }
 .live-row input[type="date"] { flex: 1 1 9em; width: auto; }
 input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
-.part { grid-template-columns: 5.5em auto minmax(0, 1fr); }
 </style>
 </head>
 <body>
 <header>
   <h1>ベース練習トラッカー</h1>
   <p class="muted">26曲 ・ 10/22〜11/23(本番日を入れると期間が変わります)</p>
-  <p style="margin-top:6px"><a href="https://claude.ai/artifact/AJzTdxNveD9T1U1Eyid3Fn" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">指板表(4弦)を開く</a></p>
+  <p style="margin-top:6px"><a href="fretboard.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">指板表(4弦)を開く</a></p>
 </header>
 
 <section>
@@ -579,20 +577,39 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
     bandSel.addEventListener("change", function () { s.band = bandSel.value; save(); renderPlan(); });
     body.appendChild(el("label", { cls: "field" }, [el("span", { text: "バンド" }), bandSel]));
 
-    // Parts with 4-level proficiency and memo
-    body.appendChild(el("div", { cls: "field" }, [el("span", { text: "パートごとの習熟度(タップで切り替え)" })]));
+    // Parts: pick a level directly, memo, and whole-song shortcuts
+    var refreshers = [];
+    function setAllParts(level) {
+      s.parts.forEach(function (p) { p.level = level; });
+      refreshers.forEach(function (fn) { fn(); });
+      markPractice(); save(); head(); renderSummary(); renderPlan(); renderLiveCard(); renderBadges();
+    }
+    body.appendChild(el("div", { cls: "row", style: "margin-top:10px" }, [
+      el("button", { cls: "btn primary", type: "button", text: "1発で完璧", on: { click: function () { setAllParts(3); } } }),
+      el("button", { cls: "btn", type: "button", text: "全部未着手に戻す", on: { click: function () { setAllParts(0); } } })
+    ]));
+    body.appendChild(el("div", { cls: "field" }, [el("span", { text: "パートごとの習熟度" })]));
     s.parts.forEach(function (p) {
-      var lvl = el("button", { cls: "lvl", type: "button", text: LEVELS[p.level] });
-      lvl.setAttribute("data-level", String(p.level));
-      lvl.addEventListener("click", function () {
-        p.level = (p.level + 1) % 4;
-        lvl.textContent = LEVELS[p.level];
-        lvl.setAttribute("data-level", String(p.level));
-        markPractice(); save(); head(); renderSummary(); renderPlan(); renderLiveCard(); renderBadges();
+      var segBtns = [];
+      var seg = el("div", { cls: "lvl-seg" });
+      LEVELS.forEach(function (name, i) {
+        var b = el("button", { cls: "lvl-btn", type: "button", text: name });
+        b.setAttribute("aria-pressed", String(p.level === i));
+        b.addEventListener("click", function () {
+          p.level = i;
+          refreshSegs();
+          markPractice(); save(); head(); renderSummary(); renderPlan(); renderLiveCard(); renderBadges();
+        });
+        segBtns.push(b);
+        seg.appendChild(b);
       });
+      function refreshSegs() {
+        segBtns.forEach(function (b, i) { b.setAttribute("aria-pressed", String(p.level === i)); });
+      }
+      refreshers.push(refreshSegs);
       var memo = el("input", { type: "text", value: p.memo || "", placeholder: "メモ", maxLength: 200, "aria-label": p.label + "のメモ" });
       memo.addEventListener("change", function () { p.memo = memo.value; save(); });
-      body.appendChild(el("div", { cls: "part" }, [el("span", { cls: "lbl", text: p.label }), lvl, memo]));
+      body.appendChild(el("div", { cls: "part" }, [el("span", { cls: "lbl", text: p.label }), seg, memo]));
     });
 
     // Song-level fields
