@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>ベース練習トラッカー</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ベース練習">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f4f0">
 <style>
 /* Layout: date and summary on top, then three panes (songs, weekly plan, weak points and logs). */
 :root {
@@ -156,13 +161,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .live-list span:first-child { overflow-wrap: anywhere; min-width: 0; }
 .bpm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+
+/* スマホ表示の安定化: 横ずれ防止・入力時の自動ズーム防止 */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; }
+body { width: 100%; overflow-x: hidden; overflow-wrap: anywhere; }
+img, svg, video, canvas, table { max-width: 100%; }
+input[type="text"], input[type="url"], input[type="date"], input[type="number"], input[type="file"], textarea, select { font-size: 16px; max-width: 100%; }
+input[type="number"] { font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box; min-width: 0; }
+input[type="date"] { min-width: 0; }
+.live-row input[type="date"] { flex: 1 1 9em; width: auto; }
+input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
+.part { grid-template-columns: 5.5em auto minmax(0, 1fr); }
 </style>
 </head>
 <body>
 <header>
   <h1>ベース練習トラッカー</h1>
   <p class="muted">26曲 ・ 10/22〜11/23(本番日を入れると期間が変わります)</p>
-  <p style="margin-top:6px"><a href="fretboard.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">指板表(4弦)を開く</a></p>
+  <p style="margin-top:6px"><a href="https://claude.ai/artifact/AJzTdxNveD9T1U1Eyid3Fn" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">指板表(4弦)を開く</a></p>
 </header>
 
 <section>
