@@ -49,8 +49,7 @@
 
 body {
   box-sizing: border-box;
-  max-width: 420px;
-  margin: 0 auto;
+  margin: 0;
   background: var(--bg);
   color: var(--fg);
   font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
@@ -58,6 +57,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
+.app { max-width: 420px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
 h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); letter-spacing: 0.04em; font-weight: 600; }
 p { margin: 0; }
@@ -163,7 +163,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* スマホ表示の安定化: 横ずれ防止・入力時の自動ズーム防止 */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; }
-body { width: 100%; overflow-x: hidden; overflow-wrap: anywhere; }
+body { overflow-wrap: anywhere; }
 img, svg, video, canvas, table { max-width: 100%; }
 input[type="text"], input[type="url"], input[type="date"], input[type="number"], input[type="file"], textarea, select { font-size: 16px; max-width: 100%; }
 input[type="number"] { font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box; min-width: 0; }
@@ -173,6 +173,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
 </style>
 </head>
 <body>
+<div class="app">
 <header>
   <h1>ベース練習トラッカー</h1>
   <p class="muted">26曲 ・ 10/22〜11/23(本番日を入れると期間が変わります)</p>
@@ -229,6 +230,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
     <div class="band-list" id="bandList"></div>
     <p class="muted" style="margin-top:6px">バンド名の「削除」を押すと、そのバンドの曲は未分類に戻ります。</p>
   </div>
+  <div class="card" id="pickCard"></div>
   <div class="card" id="songs"></div>
   <p class="muted">曲をタップすると、パートごとの習熟度・メモ・TAB譜などを開けます。習熟度はタップで「未着手 → 練習中 → ほぼOK → 完璧」の順に切り替わります。</p>
 </section>
@@ -286,6 +288,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
 </section>
 
 <p id="status" role="status" aria-live="polite"></p>
+</div>
 
 <script>
 (function () {
@@ -454,6 +457,13 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
   function isDone(s) {
     return s.parts.length > 0 && s.parts.every(function (p) { return p.level === 3; });
   }
+  function isUntouched(s) {
+    return s.parts.every(function (p) { return p.level === 0; });
+  }
+  function memoNotDone(s) {
+    var m = s.parts.filter(function (p) { return p.label === "暗譜完了"; })[0];
+    return !!m && m.level < 3;
+  }
   function diffLabel(k) {
     for (var i = 0; i < DIFFS.length; i++) if (DIFFS[i].k === k) return DIFFS[i].l;
     return "未設定";
@@ -585,7 +595,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
       markPractice(); save(); head(); renderSummary(); renderPlan(); renderLiveCard(); renderBadges();
     }
     body.appendChild(el("div", { cls: "row", style: "margin-top:10px" }, [
-      el("button", { cls: "btn primary", type: "button", text: "1発で完璧", on: { click: function () { setAllParts(3); } } }),
+      el("button", { cls: "btn primary", type: "button", text: "完璧", on: { click: function () { setAllParts(3); } } }),
       el("button", { cls: "btn", type: "button", text: "全部未着手に戻す", on: { click: function () { setAllParts(0); } } })
     ]));
     body.appendChild(el("div", { cls: "field" }, [el("span", { text: "パートごとの習熟度" })]));
@@ -675,6 +685,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
   }
 
   var bandFilter = ""; // "" = all, "__none" = unassigned, otherwise a band name
+  var pickFilter = ""; // "" = all, "untouched" = no part started, "memo" = started but 暗譜 not complete
 
   function renderBandBar() {
     var bar = $("bandFilter");
@@ -702,6 +713,27 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
     });
   }
 
+  function renderPickCard() {
+    var box = $("pickCard");
+    box.textContent = "";
+    var untouched = state.songs.filter(isUntouched).length;
+    var memo = state.songs.filter(function (s) { return !isUntouched(s) && memoNotDone(s); }).length;
+    box.appendChild(el("h2", { text: "できてない曲" }));
+    var row = el("div", { cls: "chips" });
+    [
+      { k: "", l: "すべて" },
+      { k: "untouched", l: "まだ触れてない " + untouched },
+      { k: "memo", l: "暗譜できてない " + memo }
+    ].forEach(function (it) {
+      var b = el("button", { cls: "chip", type: "button", text: it.l });
+      b.setAttribute("aria-pressed", String(pickFilter === it.k));
+      b.addEventListener("click", function () { pickFilter = it.k; renderSongs(); renderPickCard(); });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    box.appendChild(el("p", { cls: "muted", text: "「まだ触れてない」は全パートが未着手の曲です。「暗譜できてない」は、それ以外で暗譜完了が完璧でない曲です。", style: "margin-top:8px" }));
+  }
+
   function renderSongs() {
     var box = $("songs");
     box.textContent = "";
@@ -711,6 +743,8 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
     }
     renderBandBar();
     var shown = state.songs.filter(function (s) {
+      if (pickFilter === "untouched" && !isUntouched(s)) return false;
+      if (pickFilter === "memo" && (isUntouched(s) || !memoNotDone(s))) return false;
       if (bandFilter === "") return true;
       if (bandFilter === "__none") return !s.band;
       return s.band === bandFilter;
@@ -878,6 +912,7 @@ input[type="range"] { width: 100%; max-width: 100%; box-sizing: border-box; }
   }
 
   function renderBadges() {
+    renderPickCard();
     var box = $("badgeCard");
     box.textContent = "";
     var st = streakInfo();
